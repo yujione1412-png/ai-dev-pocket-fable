@@ -284,6 +284,7 @@ a{color:var(--primary);}
       インストール
     </button>
   </div>
+  <p class="note" style="text-align:center;margin-top:20px">AI Dev Pocket v1.2</p>
 </main>
 
 <!-- ============ FAB ============ -->
@@ -1008,7 +1009,18 @@ $('#fabAdd').addEventListener('click', () => navigate('add'));
    GitHub API通信はsw.js側でキャッシュ対象外
    ===================================================== */
 if('serviceWorker' in navigator){
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+  window.addEventListener('load', async () => {
+    const reg = await navigator.serviceWorker.register('sw.js');
+    reg.update(); /* 起動ごとに新しいsw.jsがないか確認 */
+    /* 新しいバージョンに切り替わったら自動で再読み込み(初回インストール時は除く)*/
+    const hadController = !!navigator.serviceWorker.controller;
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if(!hadController || reloaded || busy) return;
+      reloaded = true;
+      location.reload();
+    });
+  });
 }
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();

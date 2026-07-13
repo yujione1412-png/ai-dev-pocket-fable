@@ -708,31 +708,43 @@ function ghHeaders(extra={}){
   }, extra);
 }
 
-/* 現行SHA取得(存在しなければ null) */
+/* 現行SHA取得(存在しなければ null)
+ * ・cache:'no-store' + タイムスタンプで、ブラウザHTTPキャッシュを完全回避
+ *   (raw形式で取得済みの同一URLのキャッシュがJSON要求に返される事故を防ぐ)*/
 async function getSha(owner, repo, path){
-  const res = await fetch(`${GH}/repos/${owner}/${repo}/contents/${encPath(path)}`, {headers: ghHeaders()});
+  const res = await fetch(
+    `${GH}/repos/${owner}/${repo}/contents/${encPath(path)}?t=${Date.now()}`,
+    {headers: ghHeaders(), cache:'no-store'}
+  );
   if(res.status === 404) return null;
   if(!res.ok) throw httpError(res.status);
-  const j = await res.json();
-  return Array.isArray(j) ? null : (j.sha || null);
+  let j = null;
+  try{ j = await res.json(); }
+  catch(e){
+    /* JSONでない応答(キャッシュ異常など)はSHA不明として扱う */
+    const err = new Error('応答の解析に失敗しました。再実行してください');
+    err.code = 422; throw err;
+  }
+  if(Array.isArray(j)) return null;
+  return (j && j.sha) ? j.sha : null;
 }
 
-/* 1ファイル更新(PUT /repos/{owner}/{repo}/contents/{path})*/
-async function putFile(owner, repo, path, base64, retry=true){
+/* 1ファイル更新(PUT /repos/{owner}/{repo}/contents/{path})
+ * 409/422(SHA競合)は最新SHAを取り直して最大3回まで自動再試行 */
+async function putFile(owner, repo, path, base64, attempt=0){
   let sha = null;
   try{ sha = await getSha(owner, repo, path); }
-  catch(e){ if(e.code !== 404) throw e; }
+  catch(e){ if(e.code !== 404 && attempt >= 3) throw e; }
   const body = { message:`Update ${path} via AI Dev Pocket`, content: base64 };
   if(sha) body.sha = sha;
   const res = await fetch(`${GH}/repos/${owner}/${repo}/contents/${encPath(path)}`, {
     method:'PUT', headers: ghHeaders({'Content-Type':'application/json'}),
-    body: JSON.stringify(body)
+    body: JSON.stringify(body), cache:'no-store'
   });
   if(res.ok) return true;
-  /* 409/422(SHA競合)は最新SHAを取り直して1回だけ再試行 */
-  if(retry && (res.status===409 || res.status===422)){
-    await new Promise(r=>setTimeout(r,800));
-    return putFile(owner, repo, path, base64, false);
+  if(attempt < 3 && (res.status===409 || res.status===422)){
+    await new Promise(r=>setTimeout(r, 800 * (attempt+1)));
+    return putFile(owner, repo, path, base64, attempt+1);
   }
   throw httpError(res.status);
 }
@@ -890,9 +902,11 @@ $('#fileZip').addEventListener('change', async e => {
           → icon-512.png → icon-192.png → favicon.ico
    ===================================================== */
 async function ghGetRaw(owner, repo, path){
-  const res = await fetch(`${GH}/repos/${owner}/${repo}/contents/${encPath(path)}`, {
-    headers: ghHeaders({'Accept':'application/vnd.github.raw+json'})
-  });
+  /* raw取得もキャッシュ禁止(SHA取得用のJSON応答と混ざるのを防ぐ)*/
+  const res = await fetch(
+    `${GH}/repos/${owner}/${repo}/contents/${encPath(path)}?t=${Date.now()}`,
+    {headers: ghHeaders({'Accept':'application/vnd.github.raw+json'}), cache:'no-store'}
+  );
   if(!res.ok) return null;
   return res.blob();
 }

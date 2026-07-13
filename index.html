@@ -284,7 +284,7 @@ a{color:var(--primary);}
       インストール
     </button>
   </div>
-  <p class="note" style="text-align:center;margin-top:20px">AI Dev Pocket v1.2</p>
+  <p class="note" style="text-align:center;margin-top:20px">AI Dev Pocket v1.3</p>
 </main>
 
 <!-- ============ FAB ============ -->
@@ -875,14 +875,24 @@ $('#fileZip').addEventListener('change', async e => {
     logFinish(0, 1); busy = false; return;
   }
 
-  /* ZIP直下が単一フォルダの場合はそのフォルダ名を除去 */
+  /* フォルダ構成はそのまま保持してアップロードする。
+     ZIP直下がフォルダ1つだけの場合のみ、外すかどうかを確認
+     (「プロジェクトフォルダごと圧縮したZIP」対策)*/
   const roots = new Set(entries.map(x => x.path.split('/')[0]));
-  const stripRoot = roots.size === 1 && entries.every(x => x.path.includes('/'));
-  const rootName = stripRoot ? [...roots][0] + '/' : '';
+  let rootName = '';
+  if(roots.size === 1 && entries.every(x => x.path.includes('/'))){
+    const r = [...roots][0];
+    const strip = confirm(
+      `ZIPの直下はフォルダ「${r}」のみです。\n\n` +
+      `[OK] フォルダ名を外して、中身をリポジトリ直下に配置\n` +
+      `[キャンセル] 「${r}/」フォルダごと、この構成のままアップロード`
+    );
+    if(strip) rootName = r + '/';
+  }
 
   let ok = 0, ng = 0;
   for(const {path, entry} of entries){
-    const repoPath = stripRoot ? path.slice(rootName.length) : path;
+    const repoPath = rootName ? path.slice(rootName.length) : path;
     if(!repoPath) continue;
     const row = logRow(repoPath);
     try{

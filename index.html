@@ -180,6 +180,47 @@ input,textarea{font-family:inherit;font-size:15px;}
 .divider{height:1px;background:var(--outline);margin:14px 0;}
 .note{font-size:12px;color:var(--muted);}
 a{color:var(--primary);}
+
+/* ---------- Checkbox row ---------- */
+.checkrow{display:flex;align-items:flex-start;gap:10px;margin-top:12px;font-size:13px;color:#c3cccd;}
+.checkrow input{width:20px;height:20px;accent-color:var(--primary);flex:none;margin-top:1px;}
+
+/* ---------- Upload history ---------- */
+.hist{border:1px solid var(--outline);border-radius:12px;overflow:hidden;}
+.hist details + details{border-top:1px solid var(--outline);}
+.hist summary{list-style:none;display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer;}
+.hist summary::-webkit-details-marker{display:none;}
+.hist .hmain{flex:1;min-width:0;}
+.hist .hname{font-size:13px;word-break:break-all;}
+.hist .hdate{display:block;color:var(--muted);font-size:11.5px;margin-top:1px;}
+.hist .hstat{font-size:11.5px;flex:none;font-weight:600;}
+.hist .hstat.allok{color:var(--primary);} .hist .hstat.hasng{color:var(--danger);}
+.hist .hfiles{border-top:1px solid var(--outline);background:var(--surface2);padding:6px 12px 10px;}
+.hist .hfile{display:flex;gap:8px;font-size:12px;font-family:ui-monospace,Menlo,monospace;
+  padding:4px 0;word-break:break-all;}
+.hist .hfile .ok{color:var(--primary);flex:none;} .hist .hfile .ng{color:var(--danger);flex:none;}
+
+/* ---------- Memo ---------- */
+.memo{display:flex;align-items:flex-start;gap:9px;padding:11px 2px;
+  border-bottom:1px solid rgba(46,54,59,.6);}
+.memo input[type=checkbox]{width:21px;height:21px;accent-color:var(--primary);flex:none;margin-top:2px;}
+.memo.done input[type=checkbox]{visibility:hidden;}
+.memo .mtext{flex:1;min-width:0;word-break:break-word;font-size:14px;padding-top:2px;}
+.memo.done .mtext{text-decoration:line-through;color:var(--muted);}
+.memo .mbtn{border:1px solid var(--outline);background:transparent;color:var(--muted);
+  border-radius:10px;width:36px;height:36px;flex:none;display:flex;align-items:center;justify-content:center;}
+.memo .mbtn svg{width:18px;height:18px;fill:currentColor;}
+.memo.done .mbtn.dn{background:rgba(52,211,153,.15);color:var(--primary);border-color:var(--primary);}
+.memo .mbtn.rm{color:var(--danger);}
+
+/* ---------- Workflow ---------- */
+.wfrow{border:1px solid var(--outline);border-radius:12px;padding:12px;margin-bottom:10px;}
+.wfrow .wname{font-weight:600;font-size:14px;word-break:break-all;}
+.wfrow .wpath{font-size:11.5px;color:var(--muted);font-family:ui-monospace,Menlo,monospace;word-break:break-all;}
+.wfrow .wstat{font-size:12.5px;margin:9px 0;color:var(--muted);}
+.wfrow .wstat.ok{color:var(--primary);} .wfrow .wstat.ng{color:var(--danger);} .wfrow .wstat.running{color:var(--warn);}
+.wfrow .wbtns{display:grid;grid-template-columns:1fr auto;gap:8px;}
+.btn.sm{padding:11px 14px;font-size:13.5px;margin-bottom:0;}
 </style>
 </head>
 <body>
@@ -220,7 +261,7 @@ a{color:var(--primary);}
     <h2>プロジェクト名を入力</h2>
     <div class="field">
       <label for="addProject">共通プロジェクト名</label>
-      <input id="addProject" placeholder="例: bukken-navi-fable5" autocapitalize="off" autocomplete="off">
+      <input id="addProject" placeholder="例: my-first-app" autocapitalize="off" autocomplete="off">
       <div class="hint">GitHubリポジトリ名・Vercelプロジェクト名と同じ名前</div>
     </div>
     <div class="field">
@@ -248,11 +289,11 @@ a{color:var(--primary);}
     <h2>アカウント</h2>
     <div class="field">
       <label for="setVercel">Vercelアカウント名</label>
-      <input id="setVercel" placeholder="例: yujione" autocapitalize="off" autocomplete="off">
+      <input id="setVercel" placeholder="例: sample-account" autocapitalize="off" autocomplete="off">
     </div>
     <div class="field">
       <label for="setGithub">GitHubユーザー名</label>
-      <input id="setGithub" placeholder="例: yujione1412-png" autocapitalize="off" autocomplete="off">
+      <input id="setGithub" placeholder="例: sample-user" autocapitalize="off" autocomplete="off">
     </div>
   </div>
   <div class="card">
@@ -284,7 +325,7 @@ a{color:var(--primary);}
       インストール
     </button>
   </div>
-  <p class="note" style="text-align:center;margin-top:20px">AI Dev Pocket v1.3</p>
+  <p class="note" style="text-align:center;margin-top:20px">AI Dev Pocket <span id="verLabel"></span></p>
 </main>
 
 <!-- ============ FAB ============ -->
@@ -396,6 +437,7 @@ a{color:var(--primary);}
    AI Dev Pocket — スマホ完結型デプロイ支援PWA
    ===================================================== */
 
+const APP_VER = '1.1.0'; /* セマンティックバージョニング: MAJOR.MINOR.PATCH */
 const $ = s => document.querySelector(s);
 const LS = { apps:'adp_apps', settings:'adp_settings' };
 
@@ -599,7 +641,50 @@ function renderDetail(app){
         ZIP一括
       </button>
     </div>
-    <p class="note" style="margin:10px 0 0">ZIPはサブフォルダ(data/・public/・src/・.github/workflows/ など)ごと展開して、1ファイルずつGitHub REST APIで更新します。更新が完了するとVercelが自動デプロイを開始します。</p>
+    <p class="note" style="margin:10px 0 0">ZIPはフォルダ構成そのままGitHubへ反映します。更新が完了するとVercelが自動デプロイを開始します。</p>
+    <label class="checkrow">
+      <input type="checkbox" id="zipStripChk" ${app.zipRootMode==='strip' ? 'checked' : ''}>
+      <span>ZIP直下がフォルダ1つだけの場合、フォルダ名を外して中身をリポジトリ直下に配置する
+      ${app.zipRootMode ? '' : '<br><span class="note">未設定:初回アップロード時に確認します</span>'}</span>
+    </label>
+  </div>
+
+  <div class="card">
+    <h2>Workflow実行(GitHub Actions)</h2>
+    <div id="wfArea">
+      <button class="btn tonal" id="wfLoadBtn">
+        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        Workflow一覧を取得
+      </button>
+    </div>
+    <p class="note" style="margin:8px 0 0">実行にはトークンの「Actions: Read and write」権限と、workflow側の<b> workflow_dispatch </b>トリガーが必要です。</p>
+  </div>
+
+  <div class="card">
+    <h2>メモ(アイデア・改善)</h2>
+    <div class="inputrow" style="margin-bottom:4px">
+      <input id="memoInput" placeholder="改善アイデアを1つ入力" enterkeyhint="done">
+      <button class="iconbtn" id="memoAdd" aria-label="メモを追加">
+        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+      </button>
+    </div>
+    <div id="memoList"></div>
+    <button class="btn tonal" id="promptBtn" style="margin-top:14px">
+      <svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 2.4 1.2 4.5 3 5.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3c1.8-1.2 3-3.3 3-5.7a7 7 0 0 0-7-7zM9 20h6v1a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-1z"/></svg>
+      チェックしたメモでプロンプト作成
+    </button>
+    <div id="promptWrap" style="display:none">
+      <div class="field" style="margin:4px 0 10px"><textarea id="promptText" rows="8"></textarea></div>
+      <div class="btnrow">
+        <button class="btn outline" id="promptCopy">コピー</button>
+        <button class="btn" id="promptChat">AIチャットを開く</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>アップロード履歴</h2>
+    <div class="hist" id="histList"></div>
   </div>
 
   <div class="card" id="logCard" style="display:none">
@@ -680,6 +765,257 @@ function renderDetail(app){
     if(!requireToken(app)) return;
     $('#fileZip').value = ''; $('#fileZip').click();
   });
+
+  /* フォルダ扱いの設定 */
+  $('#zipStripChk').addEventListener('change', e => {
+    app.zipRootMode = e.target.checked ? 'strip' : 'keep';
+    saveApps();
+    toast(e.target.checked ? 'フォルダ名を外して配置します' : 'フォルダ構成のままアップロードします');
+  });
+
+  /* メモ */
+  renderMemos(app);
+  const addMemo = () => {
+    const t = $('#memoInput').value.trim();
+    if(!t) return;
+    app.memos = app.memos || [];
+    app.memos.unshift({id:'m'+Date.now().toString(36), text:t, done:false, sel:false});
+    $('#memoInput').value = '';
+    saveApps(); renderMemos(app);
+  };
+  $('#memoAdd').addEventListener('click', addMemo);
+  $('#memoInput').addEventListener('keydown', e => { if(e.key==='Enter'){ e.preventDefault(); addMemo(); } });
+
+  $('#promptBtn').addEventListener('click', () => {
+    const text = buildPrompt(app);
+    if(!text) return;
+    $('#promptWrap').style.display = '';
+    $('#promptText').value = text;
+    $('#promptText').scrollIntoView({behavior:'smooth', block:'center'});
+  });
+  $('#promptCopy').addEventListener('click', async () => {
+    try{ await navigator.clipboard.writeText($('#promptText').value); toast('プロンプトをコピーしました'); }
+    catch(e){ toast('コピーに失敗しました。長押しで選択してください'); }
+  });
+  $('#promptChat').addEventListener('click', async () => {
+    try{ await navigator.clipboard.writeText($('#promptText').value); toast('コピーしました。AIチャットに貼り付けてください'); }catch(e){}
+    openUrl(app.chatUrl, 'AIチャットURL');
+  });
+
+  /* Workflow */
+  $('#wfLoadBtn').addEventListener('click', () => {
+    if(!requireToken(app)) return;
+    loadWorkflowUI(app);
+  });
+
+  /* 履歴 */
+  renderHistory(app);
+}
+
+/* =====================================================
+   GitHub Actions:Workflow一覧・実行・状態確認
+   POST /repos/{owner}/{repo}/actions/workflows/{id}/dispatches
+   ===================================================== */
+async function ghApi(path, opts={}){
+  const method = opts.method || 'GET';
+  const url = GH + path + (method === 'GET' ? (path.includes('?') ? '&' : '?') + 't=' + Date.now() : '');
+  return fetch(url, {
+    method,
+    headers: ghHeaders(opts.body ? {'Content-Type':'application/json'} : {}),
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+    cache: 'no-store'
+  });
+}
+
+function wfError(status, kind){
+  if(status === 403) return '403:トークンに「Actions: Read and write」権限を追加してください';
+  if(status === 404) return kind === 'run'
+    ? '404:実行できません。workflow_dispatchトリガーとActions権限を確認してください'
+    : '404:リポジトリが見つからないか、Actions権限がありません';
+  if(status === 422) return '422:workflowにworkflow_dispatchトリガーがないか、ブランチ指定が不正です';
+  return status + ':GitHub APIエラー';
+}
+
+async function loadWorkflowUI(app){
+  const area = $('#wfArea'); if(!area) return;
+  const info = parseRepo(app.githubUrl);
+  if(!info){ toast('GitHub URLが正しくありません'); return; }
+  const {owner, repo} = info;
+  area.innerHTML = '<p class="note">読み込み中…</p>';
+  try{
+    const res = await ghApi(`/repos/${owner}/${repo}/actions/workflows`);
+    if(!res.ok){ area.innerHTML = `<p class="note" style="color:var(--danger)">${esc(wfError(res.status))}</p>`; return; }
+    const j = await res.json();
+    const wfs = (j.workflows || []).filter(w => w.state === 'active' || w.state === 'disabled_manually');
+    if(!wfs.length){
+      area.innerHTML = '<p class="note">このリポジトリにworkflowはありません(.github/workflows/ にymlを追加してください)。</p>';
+      return;
+    }
+    area.innerHTML = wfs.map(w => `
+      <div class="wfrow" data-wfid="${w.id}">
+        <div class="wname">${esc(w.name)}</div>
+        <div class="wpath">${esc(w.path)}</div>
+        <div class="wstat">最新の実行:確認中…</div>
+        <div class="wbtns">
+          <button class="btn sm wrun">
+            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            Run Workflow
+          </button>
+          <button class="btn sm tonal wref" aria-label="状態更新">
+            <svg viewBox="0 0 24 24"><path d="M17.65 6.35A8 8 0 1 0 19.7 14h-2.1a6 6 0 1 1-1.4-6.2L13 11h7V4l-2.35 2.35z"/></svg>
+          </button>
+        </div>
+      </div>`).join('');
+
+    area.querySelectorAll('.wfrow').forEach(row => {
+      const wf = wfs.find(w => String(w.id) === row.dataset.wfid);
+      refreshRunStatus(owner, repo, wf, row);
+      row.querySelector('.wref').addEventListener('click', () => refreshRunStatus(owner, repo, wf, row));
+      row.querySelector('.wrun').addEventListener('click', () => runWorkflow(app, owner, repo, wf, row));
+    });
+  }catch(e){
+    area.innerHTML = '<p class="note" style="color:var(--danger)">通信失敗:ネットワーク接続を確認してください</p>';
+  }
+}
+
+async function refreshRunStatus(owner, repo, wf, row){
+  const st = row.querySelector('.wstat');
+  st.className = 'wstat'; st.textContent = '最新の実行:確認中…';
+  try{
+    const res = await ghApi(`/repos/${owner}/${repo}/actions/workflows/${wf.id}/runs?per_page=1`);
+    if(!res.ok){ st.textContent = '最新の実行:' + wfError(res.status); return; }
+    const j = await res.json();
+    const run = (j.workflow_runs || [])[0];
+    if(!run){ st.textContent = '最新の実行:まだ実行されていません'; return; }
+    const when = fmtDate(new Date(run.run_started_at || run.created_at).getTime());
+    if(run.status !== 'completed'){
+      st.classList.add('running');
+      st.textContent = `最新の実行:⏳ 実行中… #${run.run_number}(${when})`;
+      return;
+    }
+    const map = {success:['ok','✓ 成功'], failure:['ng','✕ 失敗'], cancelled:['','– キャンセル'], skipped:['','– スキップ'], timed_out:['ng','✕ タイムアウト']};
+    const [cls, label] = map[run.conclusion] || ['', run.conclusion];
+    if(cls) st.classList.add(cls);
+    st.textContent = `最新の実行:${label} #${run.run_number}(${when})`;
+  }catch(e){
+    st.textContent = '最新の実行:通信失敗';
+  }
+}
+
+async function runWorkflow(app, owner, repo, wf, row){
+  const btn = row.querySelector('.wrun');
+  btn.disabled = true;
+  try{
+    /* デフォルトブランチを取得(main固定にしない) */
+    let ref = 'main';
+    const repoRes = await ghApi(`/repos/${owner}/${repo}`);
+    if(repoRes.ok){ ref = (await repoRes.json()).default_branch || 'main'; }
+
+    const res = await ghApi(`/repos/${owner}/${repo}/actions/workflows/${wf.id}/dispatches`, {
+      method:'POST', body:{ ref }
+    });
+    if(res.status === 204){
+      toast(`「${wf.name}」の実行をリクエストしました`);
+      const st = row.querySelector('.wstat');
+      st.className = 'wstat running';
+      st.textContent = '最新の実行:⏳ 開始待ち…(数秒後に自動更新します)';
+      setTimeout(() => refreshRunStatus(owner, repo, wf, row), 5000);
+    }else{
+      toast(wfError(res.status, 'run'));
+    }
+  }catch(e){
+    toast('通信失敗:ネットワーク接続を確認してください');
+  }
+  btn.disabled = false;
+}
+
+/* =====================================================
+   メモ&プロンプト生成
+   ===================================================== */
+function renderMemos(app){
+  const list = $('#memoList'); if(!list) return;
+  const memos = app.memos || [];
+  if(!memos.length){
+    list.innerHTML = '<p class="note" style="margin:8px 0 0">メモはまだありません。アイデアや改善内容を1つずつ追加してください。</p>';
+    return;
+  }
+  list.innerHTML = memos.map(m => `
+    <div class="memo ${m.done?'done':''}" data-mid="${m.id}">
+      <input type="checkbox" class="msel" ${m.sel?'checked':''} aria-label="プロンプトに含める">
+      <span class="mtext">${esc(m.text)}</span>
+      <button class="mbtn dn" aria-label="完了切替" title="完了">
+        <svg viewBox="0 0 24 24"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>
+      </button>
+      <button class="mbtn rm" aria-label="削除">
+        <svg viewBox="0 0 24 24"><path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+      </button>
+    </div>`).join('');
+
+  list.querySelectorAll('.memo').forEach(row => {
+    const memo = memos.find(m => m.id === row.dataset.mid);
+    row.querySelector('.msel').addEventListener('change', e => {
+      memo.sel = e.target.checked; saveApps();
+    });
+    row.querySelector('.dn').addEventListener('click', () => {
+      memo.done = !memo.done;
+      if(memo.done) memo.sel = false;
+      saveApps(); renderMemos(app);
+    });
+    row.querySelector('.rm').addEventListener('click', () => {
+      if(!confirm('このメモを削除しますか?')) return;
+      app.memos = app.memos.filter(m => m.id !== memo.id);
+      saveApps(); renderMemos(app);
+    });
+  });
+}
+
+function buildPrompt(app){
+  const sel = (app.memos || []).filter(m => m.sel && !m.done);
+  if(!sel.length){ toast('未完了のメモにチェックを入れてください'); return null; }
+  const lines = sel.map((m, i) => `${i+1}. ${m.text}`).join('\n');
+  return `「${app.name}」に以下の改善を加えてください。\n\n${lines}\n\n条件:\n・既存の機能・デザイン・データ構造は維持したまま変更してください\n・変更したファイルは省略せず完全な形で出力してください\n・複数ファイルの場合はフォルダ構成をそのままにZIPで出力してください`;
+}
+
+/* =====================================================
+   アップロード履歴(アプリごとに最新20件)
+   ===================================================== */
+function addHistory(app, source, files){
+  app.history = app.history || [];
+  app.history.unshift({ date: Date.now(), source, files: files.slice(0, 300) });
+  app.history = app.history.slice(0, 20);
+  saveApps();
+  renderHistory(app);
+}
+function fmtDate(t){
+  const d = new Date(t);
+  const z = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}/${z(d.getMonth()+1)}/${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`;
+}
+function renderHistory(app){
+  const el = $('#histList'); if(!el) return;
+  const hist = app.history || [];
+  if(!hist.length){
+    el.style.border = 'none';
+    el.innerHTML = '<p class="note" style="margin:0">まだアップロード履歴はありません。</p>';
+    return;
+  }
+  el.style.border = '';
+  el.innerHTML = hist.map(h => {
+    const ok = h.files.filter(f => f.ok).length;
+    const ng = h.files.length - ok;
+    return `<details>
+      <summary>
+        <div class="hmain">
+          <span class="hname">${esc(h.source)}</span>
+          <span class="hdate">${fmtDate(h.date)}</span>
+        </div>
+        <span class="hstat ${ng ? 'hasng' : 'allok'}">${ng ? `成功${ok}/失敗${ng}` : `✓ ${ok}件成功`}</span>
+      </summary>
+      <div class="hfiles">
+        ${h.files.map(f => `<div class="hfile"><span class="${f.ok?'ok':'ng'}">${f.ok?'✓':'✕'}</span><span>${esc(f.path)}</span></div>`).join('')}
+      </div>
+    </details>`;
+  }).join('');
 }
 
 function requireToken(app){
@@ -833,13 +1169,15 @@ $('#fileHtml').addEventListener('change', async e => {
   const {owner, repo} = parseRepo(app.githubUrl);
   busy = true; logStart();
   const row = logRow('index.html');
+  let ok = false;
   try{
     const b64 = bufToBase64(await file.arrayBuffer());
     await putFile(owner, repo, 'index.html', b64);
-    logDone(row, true, '更新成功'); logFinish(1, 0);
+    logDone(row, true, '更新成功'); logFinish(1, 0); ok = true;
   }catch(err){
     logDone(row, false, errMsg(err)); logFinish(0, 1);
   }
+  addHistory(app, file.name + '(単体)', [{path:'index.html', ok}]);
   busy = false;
 });
 
@@ -850,8 +1188,8 @@ $('#fileZip').addEventListener('change', async e => {
   const file = e.target.files[0]; if(!file) return;
   const app = apps.find(a => a.id === current.id); if(!app) return;
   const {owner, repo} = parseRepo(app.githubUrl);
-  busy = true; logStart();
 
+  /* 先にZIPを解析(確認ダイアログはログ開始前に出す) */
   let entries;
   try{
     const zip = await JSZip.loadAsync(file);
@@ -864,33 +1202,45 @@ $('#fileZip').addEventListener('change', async e => {
       entries.push({path, entry});
     });
   }catch(err){
+    busy = true; logStart();
     const row = logRow(file.name);
     logDone(row, false, 'ZIPの読み込みに失敗しました');
     logFinish(0, 1); busy = false; return;
   }
 
   if(!entries.length){
+    busy = true; logStart();
     const row = logRow(file.name);
     logDone(row, false, 'ZIP内に更新対象のファイルがありません');
     logFinish(0, 1); busy = false; return;
   }
 
-  /* フォルダ構成はそのまま保持してアップロードする。
-     ZIP直下がフォルダ1つだけの場合のみ、外すかどうかを確認
-     (「プロジェクトフォルダごと圧縮したZIP」対策)*/
-  const roots = new Set(entries.map(x => x.path.split('/')[0]));
+  /* フォルダ構成はそのまま保持が基本。
+     ZIP直下がフォルダ1つだけの場合:
+     ・アプリごとに初回のみ確認(OK=フォルダごと維持 / キャンセル=フォルダ名を外す)
+     ・選択は保存され、次回からは自動適用(詳細画面のチェックボックスで変更可)*/
   let rootName = '';
+  const roots = new Set(entries.map(x => x.path.split('/')[0]));
   if(roots.size === 1 && entries.every(x => x.path.includes('/'))){
     const r = [...roots][0];
-    const strip = confirm(
-      `ZIPの直下はフォルダ「${r}」のみです。\n\n` +
-      `[OK] フォルダ名を外して、中身をリポジトリ直下に配置\n` +
-      `[キャンセル] 「${r}/」フォルダごと、この構成のままアップロード`
-    );
-    if(strip) rootName = r + '/';
+    if(!app.zipRootMode){
+      const keep = confirm(
+        `ZIPの直下はフォルダ「${r}」のみです。\n\n` +
+        `[OK] フォルダ構成そのまま(「${r}/」ごと)アップロード\n` +
+        `[キャンセル] フォルダ名を外して、中身をリポジトリ直下に配置\n\n` +
+        `※この選択は保存され、次回から自動で適用されます(詳細画面のチェックボックスで変更可)`
+      );
+      app.zipRootMode = keep ? 'keep' : 'strip';
+      saveApps();
+      const chk = $('#zipStripChk');
+      if(chk) chk.checked = (app.zipRootMode === 'strip');
+    }
+    if(app.zipRootMode === 'strip') rootName = r + '/';
   }
 
+  busy = true; logStart();
   let ok = 0, ng = 0;
+  const results = [];
   for(const {path, entry} of entries){
     const repoPath = rootName ? path.slice(rootName.length) : path;
     if(!repoPath) continue;
@@ -899,11 +1249,14 @@ $('#fileZip').addEventListener('change', async e => {
       const buf = await entry.async('arraybuffer');
       await putFile(owner, repo, repoPath, bufToBase64(buf));
       logDone(row, true, '更新成功'); ok++;
+      results.push({path: repoPath, ok: true});
     }catch(err){
       logDone(row, false, errMsg(err)); ng++;
+      results.push({path: repoPath, ok: false});
     }
   }
   logFinish(ok, ng);
+  addHistory(app, file.name, results);
   busy = false;
 });
 
@@ -1047,6 +1400,7 @@ $('#installBtn').addEventListener('click', async () => {
 window.addEventListener('appinstalled', () => { $('#installCard').style.display = 'none'; });
 
 /* ---------- 初期化 ---------- */
+$('#verLabel').textContent = 'v' + APP_VER;
 history.replaceState({view:'home'}, '');
 render({view:'home'});
 </script>

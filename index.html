@@ -195,6 +195,8 @@ a{color:var(--primary);}
 .hist .hdate{display:block;color:var(--muted);font-size:11.5px;margin-top:1px;}
 .hist .hnotes{display:block;color:#b9e8d4;font-size:12px;margin-top:3px;word-break:break-word;
   border-left:2px solid var(--primary);padding-left:8px;}
+.hist .hnotes.clamp{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;}
+.hist .hnotes-more{display:block;color:var(--primary);font-size:11.5px;margin-top:3px;font-weight:600;}
 .hist .hstat{font-size:11.5px;flex:none;font-weight:600;}
 .hist .hstat.allok{color:var(--primary);} .hist .hstat.hasng{color:var(--danger);}
 .hist .hfiles{border-top:1px solid var(--outline);background:var(--surface2);padding:6px 12px 10px;}
@@ -481,7 +483,7 @@ a{color:var(--primary);}
    AI Dev Pocket — スマホ完結型デプロイ支援PWA
    ===================================================== */
 
-const APP_VER = '1.4.0'; /* セマンティックバージョニング: MAJOR.MINOR.PATCH */
+const APP_VER = '1.4.2'; /* セマンティックバージョニング: MAJOR.MINOR.PATCH */
 const $ = s => document.querySelector(s);
 const LS = { apps:'adp_apps', settings:'adp_settings' };
 
@@ -1038,8 +1040,9 @@ const AI_RULE_PROMPT = `【出力形式のルール】
    (例: index.html はZIP直下、データは data/、ワークフローは .github/workflows/)
 3. ZIPのファイル名にはプロジェクト名とバージョンを付けてください(例: my-app-v1.2.0.zip)
 4. ZIP直下に changelog.txt を必ず含めてください
-   ・今回の変更内容を、1行につき1項目で簡潔に記載
-   ・このファイルは更新記録用で、リポジトリにはアップロードされません
+   ・1行目に「アプリ名 バージョン (日付)」を記載してください(例: my-app v1.2.0 (2026-07-19))
+   ・2行目以降に、今回の変更点を1行につき1項目で簡潔に記載してください
+   ・注意書きや補足説明など、上記以外の行は書かないでください
 5. 既存の機能・デザイン・データ構造は、指示がない限り維持してください`;
 
 /* =====================================================
@@ -1077,7 +1080,7 @@ function renderHistory(app){
       <summary>
         <div class="hmain">
           <span class="hname">${esc(h.source)}</span>
-          ${h.notes ? `<span class="hnotes">${esc(h.notes).replace(/\n/g,'<br>')}</span>` : ''}
+          ${h.notes ? `<span class="hnotes clamp">${esc(h.notes).replace(/\n/g,'<br>')}</span><span class="hnotes-more" style="display:none">▾ タップで全文を表示</span>` : ''}
           <span class="hdate">${fmtDate(h.date)}</span>
         </div>
         <span class="hstat ${ng ? 'hasng' : 'allok'}">${ng ? `成功${ok}/失敗${ng}` : `✓ ${ok}件成功`}</span>
@@ -1094,6 +1097,22 @@ function renderHistory(app){
 
   el.querySelectorAll('.hrestore').forEach(btn => {
     btn.addEventListener('click', () => restoreHistory(app, app.history[Number(btn.dataset.hidx)]));
+  });
+
+  /* 更新内容:4行を超える場合はタップで開閉(履歴項目自体の開閉とは干渉させない) */
+  requestAnimationFrame(() => {
+    el.querySelectorAll('.hnotes').forEach(n => {
+      const more = n.nextElementSibling;
+      if(!(n.scrollHeight > n.clientHeight + 2)) return; /* 4行以内なら何もしない */
+      more.style.display = '';
+      const toggle = e => {
+        e.preventDefault(); e.stopPropagation();
+        const clamped = n.classList.toggle('clamp');
+        more.textContent = clamped ? '▾ タップで全文を表示' : '▴ 折りたたむ';
+      };
+      n.addEventListener('click', toggle);
+      more.addEventListener('click', toggle);
+    });
   });
 }
 
@@ -1414,7 +1433,12 @@ $('#fileZip').addEventListener('change', async e => {
   };
   const clEntry = entries.find(x => isChangelog(x.path));
   if(clEntry){
-    try{ notes = (await clEntry.entry.async('string')).trim().slice(0, 1000); }catch(e){}
+    try{
+      notes = (await clEntry.entry.async('string')).trim()
+        .split('\n')
+        .filter(l => !/^\s*※/.test(l) && !/更新記録用|アップロードは不要/.test(l))
+        .join('\n').trim().slice(0, 1000);
+    }catch(e){}
     entries = entries.filter(x => !isChangelog(x.path));
   }
   /* コミットメッセージに更新内容の1行目を添える */

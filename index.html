@@ -471,7 +471,7 @@ a{color:var(--primary);}
    AI Dev Pocket — スマホ完結型デプロイ支援PWA
    ===================================================== */
 
-const APP_VER = '1.3.0'; /* セマンティックバージョニング: MAJOR.MINOR.PATCH */
+const APP_VER = '1.3.1'; /* セマンティックバージョニング: MAJOR.MINOR.PATCH */
 const $ = s => document.querySelector(s);
 const LS = { apps:'adp_apps', settings:'adp_settings' };
 
@@ -1233,23 +1233,6 @@ function logFinish(okCount, ngCount){
   $('#afterUpload').style.display = '';
 }
 
-/* 全件成功後:アップロード済みファイルの削除を確認
-   ※ブラウザの制限で自動削除は不可のため、ダウンロード画面を開いて手動削除してもらう */
-function offerFileCleanup(fileName){
-  setTimeout(() => {
-    const ok = confirm(
-      `すべて更新成功しました。\n\n` +
-      `端末に残った「${fileName}」を削除しますか?\n\n` +
-      `[OK] ダウンロード一覧を開く(そこでファイルを削除できます)\n` +
-      `[キャンセル] 何もしない\n\n` +
-      `※セキュリティ上、アプリからの自動削除はできません`
-    );
-    if(ok){
-      try{ location.href = 'intent:#Intent;action=android.intent.action.VIEW_DOWNLOADS;end'; }
-      catch(e){ toast('ファイルアプリの「ダウンロード」から削除してください'); }
-    }
-  }, 500);
-}
 
 /* =====================================================
    index.html 単体更新
@@ -1270,7 +1253,6 @@ $('#fileHtml').addEventListener('change', async e => {
   }
   addHistory(app, file.name + '(単体)', [{path:'index.html', ok}]);
   busy = false;
-  if(ok) offerFileCleanup(file.name);
 });
 
 /* =====================================================
@@ -1350,7 +1332,6 @@ $('#fileZip').addEventListener('change', async e => {
   logFinish(ok, ng);
   addHistory(app, file.name, results);
   busy = false;
-  if(ng === 0 && ok > 0) offerFileCleanup(file.name);
 });
 
 /* =====================================================
